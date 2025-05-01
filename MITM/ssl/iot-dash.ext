@@ -1,0 +1,2 @@
+[ v3_req ]
+subjectAltName = DNS:iot-dashboard-login.s3-website.eu-north-1.amazonaws.com

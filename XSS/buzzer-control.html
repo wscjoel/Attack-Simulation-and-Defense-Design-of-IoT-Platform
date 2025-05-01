@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Remote Buzzer Control</title>
+</head>
+<body>
+  <h1>IoT Buzzer Control</h1>
+  <button onclick="turnBuzzerOn()">Turn Buzzer ON</button>
+  <button onclick="turnBuzzerOff()">Turn Buzzer OFF</button>
+  <div id="result"></div>
+
+  <script>
+    function turnBuzzerOn() {
+      controlBuzzer('on');
+    }
+
+    function turnBuzzerOff() {
+      controlBuzzer('off');
+    }
+
+    function controlBuzzer(state) {
+      fetch('http://localhost:8000/api/buzzer', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer eyJ1c2VybmFtZSI6ICJhZG1pbiIsICJyb2xlIjogImFkbWluIiwgImV4cCI6IDE3NDUwMjA0MzJ9.3446bdba50c91c9203103b771b5a5adec3c05c43081b91b586eabc1e070d9b4d'
+        },
+        body: JSON.stringify({ 'buzzer': state })
+      })
+      .then(response => response.json())
+      .then(data => {
+        document.getElementById('result').innerText = JSON.stringify(data);
+      })
+      .catch(error => {
+        document.getElementById('result').innerText = 'Error: ' + error;
+      });
+    }
+  </script>
+</body>
+</html>

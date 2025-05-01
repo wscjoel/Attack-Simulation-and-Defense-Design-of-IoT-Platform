@@ -1,0 +1,22 @@
+***Phishing is illegal and not promoted***
+***This is purely for educational purposes. Do not recreate this on authentic websites even if you own them***
+
+A. What are the various files in the folder:
+-----------------------------------------------------------------------------------------------------------------------------------
+1. The index.html file has the cloned version of the original website (stored on Login.html). 
+2. The index.html script redirects the login credentials to the creds.txt file by using the stealer.php file.
+3. stealer.php contains the script to secretly copy the login credentials when the user enters them on the fake but identical site.
+-----------------------------------------------------------------------------------------------------------------------------------
+
+B. How to use files for simulating attack:
+------------------------------------------------------------------------------------------------------------------------
+1. Download the XAMPP application and run the apache module from the dashboard.
+2. Download the phishing-demo folder and make sure it is stored in the XAMPP folder path, under htdocs folder.
+3. Open a browser and copy paste URL: http://localhost/phishing-demo/index.html
+4. This should bring us an exact replica of the original website. 
+5. Enter the login credentials.
+6. Open the creds.txt file and the credentials used for login will be recorded. 
+
+This shows how an attacker can steal the login credentials through a phishing attack.
+----------------------------------------------------------------------------------------------------------------------------
+

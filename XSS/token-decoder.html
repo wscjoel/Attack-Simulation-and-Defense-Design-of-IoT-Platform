@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Token Decoder</title>
+  <style>
+    pre { background: #f4f4f4; padding: 10px; border-radius: 5px; }
+  </style>
+</head>
+<body>
+  <h1>JWT Token Decoder</h1>
+  <textarea id="tokenInput" rows="4" cols="50">eyJ1c2VybmFtZSI6ICJhZG1pbiIsICJyb2xlIjogImFkbWluIiwgImV4cCI6IDE3NDUwMjA0MzJ9.3446bdba50c91c9203103b771b5a5adec3c05c43081b91b586eabc1e070d9b4d</textarea>
+  <button onclick="decodeToken()">Decode Token</button>
+  <h2>Decoded Data:</h2>
+  <pre id="decodedOutput"></pre>
+
+  <script>
+    function decodeToken() {
+      try {
+        const token = document.getElementById('tokenInput').value;
+        const base64Part = token.split('.')[0];
+        const decodedData = atob(base64Part);
+        const jsonData = JSON.parse(decodedData);
+
+        document.getElementById('decodedOutput').textContent =
+          JSON.stringify(jsonData, null, 2) +
+          "\n\nExpiration date: " + new Date(jsonData.exp * 1000).toLocaleString();
+      } catch (error) {
+        document.getElementById('decodedOutput').textContent = "Error: " + error.message;
+      }
+    }
+
+    // Decode on page load
+    window.onload = decodeToken;
+  </script>
+</body>
+</html>

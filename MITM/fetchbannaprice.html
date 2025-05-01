@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<!-- Mirrored from iot-dashboard-login.s3-website.eu-north-1.amazonaws.com/fetchbannaprice.html by HTTrack Website Copier/3.x [XR&CO'2014], Thu, 17 Apr 2025 00:54:00 GMT -->
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Banana Prices</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        h2 {
+            text-align: center;
+        }
+        table {
+            width: 80%;
+            margin: 20px auto;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid black;
+            padding: 8px;
+            text-align: center;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+    <h2>Banana Prices</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Origin</th>
+                <th>Date</th>
+                <th>Price</th>
+                <th>Unit</th>
+            </tr>
+        </thead>
+        <tbody id="csv-data"></tbody>
+    </table>
+
+    <script>
+        async function fetchCSV() {
+            try {
+                const url = "bananas-250303.csv"; // Ensure CSV is in the same directory
+                const response = await fetch(url);
+                const text = await response.text();
+
+                if (!response.ok || !text.trim()) {
+                    console.error("Failed to fetch CSV or file is empty.");
+                    return;
+                }
+
+                // Convert CSV to an array
+                const rows = text.split("\n").map(row => row.split(","));
+                const headers = rows.shift().map(h => h.trim().toLowerCase()); // Normalize headers
+
+                const jsonData = rows.map(row => {
+                    const entry = Object.fromEntries(headers.map((h, i) => [h, row[i]?.trim() || ""]));
+                    return entry;
+                });
+
+                // ✅ Fix: Parse dates and sort correctly
+                const dateSet = [...new Set(jsonData.map(row => row.date))].map(date => ({
+                    original: date,
+                    parsed: new Date(date.split("/").reverse().join("-")) // Convert DD/MM/YYYY to Date object
+                }));
+
+                // Sort dates from latest to oldest
+                dateSet.sort((a, b) => b.parsed - a.parsed);
+
+                // Get the two most recent dates
+                const latestTwoDates = dateSet.slice(0, 2).map(d => d.original);
+
+                console.log("Latest Two Dates:", latestTwoDates); // Debugging
+
+                // ✅ Filter data for only the latest two days
+                const filteredData = jsonData.filter(row => latestTwoDates.includes(row.date));
+
+                console.log("Filtered Data:", filteredData); // Debugging
+
+                // ✅ Populate the table
+                const tableBody = document.getElementById("csv-data");
+                tableBody.innerHTML = ""; // Clear previous data
+
+                filteredData.forEach(row => {
+                    if (row.origin && row.date && row.price) {
+                        const tr = document.createElement("tr");
+                        tr.innerHTML = `
+                            <td>${row.origin}</td>
+                            <td>${row.date}</td>
+                            <td>${row.price}</td>
+                            <td>${row.unit || "£/kg"}</td>  <!-- Fix for undefined -->
+                        `;
+                        tableBody.appendChild(tr);
+                    }
+                });
+
+            } catch (error) {
+                console.error("Error fetching CSV:", error);
+            }
+        }
+
+        fetchCSV();
+    </script>
+
+</body>
+
+<!-- Mirrored from iot-dashboard-login.s3-website.eu-north-1.amazonaws.com/fetchbannaprice.html by HTTrack Website Copier/3.x [XR&CO'2014], Thu, 17 Apr 2025 00:54:00 GMT -->
+</html>

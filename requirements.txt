@@ -1,0 +1,25 @@
+Flask==2.3.3
+pyotp==2.9.0
+qrcode==7.4.2
+dnspython==2.4.2
+requests==2.31.0
+geoip2==4.7.0
+zxcvbn==4.4.28
+PyJWT==2.8.0
+user-agents==2.2.0
+cryptography==41.0.4
+pillow==10.0.1  # Required for QR code generation
+html5lib==1.1
+colorama==0.4.6
+beautifulsoup4==4.12.2
+pytest==7.4.2
+pytest-asyncio==0.21.1
+aiohttp==3.8.5
+fake-useragent==1.2.1
+asyncio==3.4.3
+pytest-cov==4.1.0
+pytest-xdist==3.3.1
+pytest-mock==3.11.1
+coverage==7.3.1
+maxminddb==2.4.0
+pyOpenSSL==23.2.0  # For SSL support

@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  web:
+    build: ./web
+    container_name: target_web
+    networks:
+      ddosnet:
+        ipv4_address: 172.30.0.100
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN  # 增加这行来允许操作 iptables
+  attacker:
+    image: kalilinux/kali-rolling
+    networks:
+      - ddosnet
+    tty: true
+    command: sh -c "apt update && apt install -y hping3 && hping3 -S -p 80 --flood 172.30.0.100"
+
+networks:
+  ddosnet:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24
+

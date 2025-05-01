@@ -1,0 +1,4 @@
+FROM nginx:alpine
+# 删除默认的 index.html 并复制自定义页面文件到 Nginx 目录
+RUN rm /usr/share/nginx/html/index.html
+COPY index.html /usr/share/nginx/html/index.html

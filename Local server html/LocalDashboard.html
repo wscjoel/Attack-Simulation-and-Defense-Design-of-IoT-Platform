@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Local IoT Sensor Dashboard</title>
+
+    <!-- Authentication check -->
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            // Check if user is authenticated
+            const token = localStorage.getItem('auth_token');
+            if (!token) {
+                // Redirect to login page if no token exists
+                window.location.href = 'Login.html';
+            }
+        });
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+    <style>
+        body {
+            background-color: #f4f7fa;
+            font-family: Arial, sans-serif;
+        }
+
+        #dashboard {
+            margin-top: 50px;
+            padding: 20px;
+            background-color: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .sensor-box p {
+            font-size: 1.2rem;
+        }
+
+        canvas {
+            margin-top: 20px;
+            max-height: 300px;
+        }
+
+        .btn-primary, .btn-secondary, .btn-danger, .btn-success {
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container" id="dashboard">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="text-center flex-grow-1">Local IoT Sensor Dashboard</h1>
+        <button class="btn btn-danger" onclick="logout()">Logout</button>
+    </div>
+    <div class="alert alert-danger d-none mt-3" id="sensorAlert" role="alert"></div>
+    <button class="btn btn-secondary mt-3" onclick="downloadCSV()">Download Sensor Data</button>
+
+    <div class="row sensor-box text-center mt-4">
+        <div class="col-md-4">🌡️ Temperature: <strong id="temperature">--</strong> °C</div>
+        <div class="col-md-4">💧 Humidity: <strong id="humidity">--</strong> % rH</div>
+        <div class="col-md-4">🛰️ Pressure: <strong id="pressure">--</strong> kPa</div>
+    </div>
+
+    <div class="row sensor-box text-center mt-3">
+        <div class="col-md-4">💡 Illuminance: <strong id="illuminance">--</strong> lx</div>
+        <div class="col-md-4">🛢️ MQ2 Gas Level: <strong id="mq2">--</strong></div>
+        <div class="col-md-4">🛢️ MQ135 Gas Level: <strong id="mq135">--</strong></div>
+    </div>
+
+    <div class="mt-4">
+        <h4>Set Banana Price</h4>
+        <input type="number" class="form-control" id="bananaPrice" placeholder="Enter price in $">
+        <button class="btn btn-primary" onclick="sendPrice()">Send Price</button>
+        <p id="priceStatus" class="mt-2"></p>
+    </div>
+
+    <div class="mt-4">
+        <h4>Buzzer Control</h4>
+        <button class="btn btn-success" onclick="toggleBuzzer('on')">Turn Buzzer ON</button>
+        <button class="btn btn-danger" onclick="toggleBuzzer('off')">Turn Buzzer OFF</button>
+        <p id="buzzerStatus" class="mt-2"></p>
+    </div>
+
+    <div class="mt-4">
+        <h4>Set Alert Thresholds</h4>
+
+        <label for="tempThreshold">Temperature Threshold (°C):</label>
+        <input type="number" class="form-control mb-2" id="tempThreshold" placeholder="Enter max temperature">
+
+        <label for="mq2Threshold">MQ2 Gas Level Threshold:</label>
+        <input type="number" class="form-control mb-2" id="mq2Threshold" placeholder="Enter max MQ2 value">
+
+        <label for="mq135Threshold">MQ135 Gas Level Threshold:</label>
+        <input type="number" class="form-control mb-2" id="mq135Threshold" placeholder="Enter max MQ135 value">
+
+        <p class="text-muted mt-2">You will get an alert when values exceed these thresholds.</p>
+    </div>
+
+    <!-- New vulnerable feedback section -->
+    <div class="mt-4">
+        <h4>User Feedback</h4>
+        <label for="feedbackName">Your Name:</label>
+        <input type="text" class="form-control mb-2" id="feedbackName" placeholder="Enter your name">
+
+        <label for="feedbackComment">Your Comment:</label>
+        <textarea class="form-control mb-2" id="feedbackComment" rows="3" placeholder="Enter your feedback"></textarea>
+
+        <button class="btn btn-primary" onclick="submitFeedback()">Submit Feedback</button>
+
+        <div class="mt-3">
+            <h5>Recent Comments:</h5>
+            <div id="feedbackContainer" class="p-3 border rounded">
+                <!-- Feedback will be shown here -->
+            </div>
+        </div>
+    </div>
+
+    <div class="row sensor-box text-center mt-3">
+        <div class="col-md-4">🌍 External Temperature: <strong id="externalTemperature">--</strong> °C</div>
+    </div>
+
+
+    <canvas id="temperatureChart"></canvas>
+    <canvas id="mq2Chart"></canvas>
+    <canvas id="mq135Chart"></canvas>
+</div>
+
+<script>
+const tempCtx = document.getElementById('temperatureChart').getContext('2d');
+const mq2Ctx = document.getElementById('mq2Chart').getContext('2d');
+const mq135Ctx = document.getElementById('mq135Chart').getContext('2d');
+
+const timeLabels = [];
+const temperatureData = [];
+const humidityData = [];
+const pressureData = [];
+const illuminanceData = [];
+const mq2Data = [];
+const mq135Data = [];
+
+const tempChart = new Chart(tempCtx, {
+    type: 'line',
+    data: { labels: timeLabels, datasets: [{ label: 'Temperature (°C)', data: temperatureData, borderColor: 'red' }] },
+    options: { scales: { y: { beginAtZero: false } } }
+});
+
+const mq2Chart = new Chart(mq2Ctx, {
+    type: 'line',
+    data: { labels: timeLabels, datasets: [{ label: 'MQ2 Gas Level', data: mq2Data, borderColor: 'blue' }] },
+    options: { scales: { y: { beginAtZero: true } } }
+});
+
+const mq135Chart = new Chart(mq135Ctx, {
+    type: 'line',
+    data: { labels: timeLabels, datasets: [{ label: 'MQ135 Gas Level', data: mq135Data, borderColor: 'green' }] },
+    options: { scales: { y: { beginAtZero: true } } }
+});
+
+async function fetchData() {
+    try {
+        // Get authentication token
+        const token = localStorage.getItem('auth_token');
+
+        // Fetch sensor data from local API with authentication
+        const response = await fetch("/api/sensor", {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        // If unauthorized, redirect to login page
+        if (response.status === 401) {
+            localStorage.removeItem('auth_token');
+            window.location.href = 'Login.html';
+            return;
+        }
+
+        const data = await response.json();
+        const latest = data.body;
+
+        // Update UI with sensor data
+        document.getElementById("temperature").innerText = latest.temperature.toFixed(1);
+        document.getElementById("humidity").innerText = latest.humidity.toFixed(1);
+        document.getElementById("pressure").innerText = latest.pressure.toFixed(1);
+        document.getElementById("illuminance").innerText = latest.illuminance.toFixed(1);
+        document.getElementById("mq2").innerText = latest.mq2.toFixed(1);
+        document.getElementById("mq135").innerText = latest.mq135.toFixed(1);
+        document.getElementById("externalTemperature").innerText = latest.external_temp.toFixed(1);
+
+        // Store data for CSV download
+        const currentTime = new Date().toLocaleTimeString();
+        timeLabels.push(currentTime);
+        temperatureData.push(latest.temperature);
+        humidityData.push(latest.humidity);
+        pressureData.push(latest.pressure);
+        illuminanceData.push(latest.illuminance);
+        mq2Data.push(latest.mq2);
+        mq135Data.push(latest.mq135);
+
+        // Keep only the last 20 data points to prevent charts from getting too crowded
+        if (timeLabels.length > 20) {
+            timeLabels.shift();
+            temperatureData.shift();
+            humidityData.shift();
+            pressureData.shift();
+            illuminanceData.shift();
+            mq2Data.shift();
+            mq135Data.shift();
+        }
+
+        // Update charts
+        tempChart.update();
+        mq2Chart.update();
+        mq135Chart.update();
+
+        // Check thresholds
+        checkThresholds(latest);
+    } catch (error) {
+        console.error("Error fetching sensor data:", error);
+    }
+}
+
+async function sendPrice() {
+    const price = document.getElementById("bananaPrice").value;
+    if (!price) {
+        document.getElementById("priceStatus").innerText = "Please enter a price!";
+        return;
+    }
+
+    const token = localStorage.getItem('auth_token');
+    const payload = { body: JSON.stringify({ price: parseFloat(price) }) };
+
+    try {
+        const response = await fetch("/api/price", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`
+            },
+            body: JSON.stringify(payload)
+        });
+
+        // If unauthorized, redirect to login page
+        if (response.status === 401) {
+            localStorage.removeItem('auth_token');
+            window.location.href = 'Login.html';
+            return;
+        }
+
+        const data = await response.json();
+        document.getElementById("priceStatus").innerText = data.message || "Price updated successfully!";
+
+    } catch (error) {
+        console.error("Error sending price:", error);
+        document.getElementById("priceStatus").innerText = "Error sending price.";
+    }
+}
+
+async function toggleBuzzer(state) {
+    try {
+        const token = localStorage.getItem('auth_token');
+
+        const response = await fetch("/api/buzzer", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`
+            },
+            body: JSON.stringify({ "buzzer": state })
+        });
+
+        // If unauthorized, redirect to login page
+        if (response.status === 401) {
+            localStorage.removeItem('auth_token');
+            window.location.href = 'Login.html';
+            return;
+        }
+
+        const data = await response.json();
+        document.getElementById("buzzerStatus").innerText = data.message || `Buzzer turned ${state.toUpperCase()}!`;
+
+    } catch (error) {
+        console.error("Error:", error);
+        document.getElementById("buzzerStatus").innerText = "Buzzer API error!";
+    }
+}
+
+function checkThresholds(sensorData) {
+    const tempThreshold = parseFloat(document.getElementById("tempThreshold").value);
+    const mq2Threshold = parseFloat(document.getElementById("mq2Threshold").value);
+    const mq135Threshold = parseFloat(document.getElementById("mq135Threshold").value);
+    let alertMessage = "";
+    let buzzerTriggered = false;
+
+    if (!isNaN(tempThreshold) && sensorData.temperature > tempThreshold) {
+        alertMessage += `⚠️ High Temperature Alert! (${sensorData.temperature.toFixed(1)}°C exceeds ${tempThreshold}°C)\n`;
+        buzzerTriggered = true;
+    }
+    if (!isNaN(mq2Threshold) && sensorData.mq2 > mq2Threshold) {
+        alertMessage += `⚠️ High MQ2 Gas Level! (${sensorData.mq2.toFixed(1)} exceeds ${mq2Threshold})\n`;
+        buzzerTriggered = true;
+    }
+    if (!isNaN(mq135Threshold) && sensorData.mq135 > mq135Threshold) {
+        alertMessage += `⚠️ High MQ135 Gas Level! (${sensorData.mq135.toFixed(1)} exceeds ${mq135Threshold})\n`;
+        buzzerTriggered = true;
+    }
+
+    const alertBox = document.getElementById("sensorAlert");
+
+    if (alertMessage) {
+        alertBox.innerHTML = alertMessage.replace(/\n/g, "<br>");
+        alertBox.classList.remove("d-none");  // Show alert on dashboard
+
+        if (buzzerTriggered) {
+            toggleBuzzer("on");  // Auto-activate buzzer
+        }
+    } else {
+        alertBox.classList.add("d-none");  // Hide alert if no warnings
+    }
+}
+
+function downloadCSV() {
+    let csvContent = "Date, Time, Temperature (°C), Humidity (%), Pressure (kPa), Illuminance (lx), MQ2 Gas, MQ135 Gas\n";
+
+    for (let i = 0; i < timeLabels.length; i++) {
+        let date = new Date(); // Get the current date
+        let formattedDate = date.toISOString().split("T")[0]; // YYYY-MM-DD format
+        let formattedTime = timeLabels[i]; // Use existing time
+
+        csvContent += `${formattedDate},${formattedTime},${temperatureData[i] || ''},${humidityData[i] || ''},${pressureData[i] || ''},${illuminanceData[i] || ''},${mq2Data[i] || ''},${mq135Data[i] || ''}\n`;
+    }
+
+    const blob = new Blob([csvContent], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `sensor_readings_${new Date().toISOString().split("T")[0]}.csv`; // File name with date
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+}
+
+// Logout function
+function logout() {
+    localStorage.removeItem('auth_token');
+    window.location.href = 'Login.html';
+}
+
+// Function to submit feedback - intentionally vulnerable to XSS
+function submitFeedback() {
+    const name = document.getElementById('feedbackName').value;
+    const comment = document.getElementById('feedbackComment').value;
+
+    if (!name || !comment) {
+        alert("Please enter both name and comment!");
+        return;
+    }
+
+    // Get existing feedback or initialize empty array
+    let feedbacks = JSON.parse(localStorage.getItem('user_feedbacks') || '[]');
+
+    // Add new feedback
+    feedbacks.push({
+        name: name,
+        comment: comment,
+        timestamp: new Date().toLocaleString()
+    });
+
+    // Store in localStorage
+    localStorage.setItem('user_feedbacks', JSON.stringify(feedbacks));
+
+    // Display all feedbacks - VULNERABLE TO XSS (no sanitization)
+    displayFeedbacks();
+
+    // Clear form
+    document.getElementById('feedbackName').value = '';
+    document.getElementById('feedbackComment').value = '';
+}
+
+// Display feedbacks - intentionally vulnerable to XSS
+function displayFeedbacks() {
+    const feedbackContainer = document.getElementById('feedbackContainer');
+    const feedbacks = JSON.parse(localStorage.getItem('user_feedbacks') || '[]');
+
+    // Clear container
+    feedbackContainer.innerHTML = '';
+
+    if (feedbacks.length === 0) {
+        feedbackContainer.innerHTML = '<p class="text-muted">No comments yet. Be the first to comment!</p>';
+        return;
+    }
+
+    // Add each feedback - THIS IS VULNERABLE TO XSS
+    feedbacks.forEach(feedback => {
+        // Directly insert HTML without sanitization
+        feedbackContainer.innerHTML += `
+            <div class="mb-3 p-2 border-bottom">
+                <strong>${feedback.name}</strong> - ${feedback.timestamp}
+                <p>${feedback.comment}</p>
+            </div>
+        `;
+    });
+}
+
+// Fetch simulated sensor data every 5 seconds
+setInterval(fetchData, 5000);
+
+// Initial data fetch on page load
+fetchData();
+
+// Display existing feedbacks when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    displayFeedbacks();
+});
+</script>
+</body>
+</html>
